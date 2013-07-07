@@ -1,5 +1,5 @@
 /*   CrazyFlie Controller
- *   version 0.27  7/04/13 tbitson
+ *   version 0.29  7/05/13 tbitson
  *
  * This program demonstarts controlling a CrazyFlie Quadcopter
  * using an Arduino. Based on the RF24 library by maniacbug at
@@ -30,6 +30,9 @@
 
 // enable debug prints by setting to 1
 const boolean DEBUG = 0;
+
+// version
+#define VERSION 0.29
 
 // connections
 #define JS1_V   A0    // Thrust
@@ -88,7 +91,7 @@ int yawOffset = 0;
 
 // experimental thrust smoothing levels
 const float ALPHA_UP = .50;
-const float ALPHA_DOWN = .80;
+const float ALPHA_DOWN = .90;
 float smoothedThrust = 0.0;
 
 
@@ -107,14 +110,12 @@ typedef struct
   float pitch;
   float yaw;
   uint  thrust;
-} 
-cmdPacket;
+} cmdPacket;
 
 // create an instance of the packet
 cmdPacket crtp; 
 
 // TODO: create a union with cmpPacket and byte array 
-
 // send & receive array. Lame way to send struct
 char payload[15];
 
@@ -127,11 +128,19 @@ typedef struct
   int roll;
   boolean sw1;
   boolean sw2;
-}  
-controls;
+}  controls;
 
 //make an instance of the controls struct
 controls cntr;
+
+typedef struct
+{
+  byte version;
+  int js1_v;
+  int js1_h;
+  int js2_v;
+  int js2_h;
+} eepromValues;
 
 
 // program vars
@@ -148,13 +157,18 @@ void setup(void)
   delay(2000);
 
   Serial.begin(57600);
-  Serial.println("CrazyFlie Arduino Controller ver 0.25");
+  Serial.print("CrazyFlie Arduino Controller ver ");
+  Serial.println(VERSION);
   printf_begin();
 
   lcd.begin(57600);
   initSerialLCD();
   setLCDColor(0xFF, 0xFF, 0xFF);  // white
-  lcd.print("CrazyFlie v0.25");
+  lcd.print("CrazyFlie v");
+  lcd.print(VERSION);
+  
+  // Init nRRF24L01
+  radio.begin();
 
   // set up pin modes
   pinMode(LED, OUTPUT);
@@ -167,6 +181,11 @@ void setup(void)
 
   // TODO: read control offsets if JS button is pushed
   // and store in EEPROM
+  readControls();
+  if (!cntr.sw2)
+    doCalibrate();
+
+
 
 
   // define initial values for packet
@@ -176,8 +195,7 @@ void setup(void)
   crtp.yaw    = 0.0;
   crtp.thrust = 0;
 
-  // Setup and configure rf radio
-  radio.begin();
+
 
   // enable dynamic payloads, ch 10, data rate 250K
   radio.enableDynamicPayloads();
@@ -196,7 +214,8 @@ void setup(void)
   radio.startListening();
 
   Serial.println("setup done");
-  //clearLCD();
+  setLCDCursor(1, 2);
+  lcd.print("Ready");
 }
 
 
@@ -312,6 +331,52 @@ void checkStatus(void)
   // TODO: check battery voltage
   // TODO: check link status
 }
+
+
+void doCalibrate()
+{
+  float sum =0.0;
+  float js1_v, js1_h, js2_v, js2_h;
+  
+  // update LCD
+  setLCDCursor(1, 2);
+  lcd.print("Calibrating...");
+  
+  
+  for(int i = 0; i < 10; i++)
+    sum += analogRead(JS1_V);    
+  js1_v = sum/10.0;
+
+  sum = 0.0;
+  for(int i = 0; i < 10; i++)
+    sum += analogRead(JS1_H);
+  js1_h = sum/10.0;
+
+  sum = 0.0;
+  for(int i = 0; i < 10; i++)
+    sum += analogRead(JS2_V);    
+  js2_v = sum/10.0;
+
+  sum = 0.0;
+  for(int i = 0; i < 10; i++)
+    sum += analogRead(JS2_H);
+  js2_h = sum/10.0;
+
+  //if (DEBUG)
+  {
+    Serial.print("JS1_V Offset = ");
+    Serial.println(js1_v);
+    Serial.print("JS1_H Offset = ");
+    Serial.println(js1_h);    
+    Serial.print("JSs_V Offset = ");
+    Serial.println(js2_v);
+    Serial.print("JS2_H Offset = ");
+    Serial.println(js2_h);
+  }
+
+  // store in EEPROM
+}
+
 
 
 void updateLCD()
@@ -460,7 +525,7 @@ void initSerialLCD()
   // turn off cursors
   lcd.write(0xFE);
   lcd.write(0x4B);
-  
+
   // block curson off
   lcd.write(0xFE);
   lcd.write(0x54);
@@ -527,7 +592,7 @@ void setLCDBaud(byte val)
   // 0x22 = 28800
   // 0x33 = 19200
   // 0x67 = 9600 (default)
-  
+
   lcd.write(0xFE);
   lcd.write(0x39);
   lcd.write(val);
@@ -562,3 +627,5 @@ void setLCDColor(byte r, byte g, byte b)
   lcd.write(b);
   delay(1);
 }
+
+
