@@ -20,7 +20,7 @@
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
-#include "printf.h"
+//#include "printf.h"
 #include <SoftwareSerial.h>
 
 // Uncomment this for serial LCD support
@@ -164,7 +164,7 @@ void setup(void)
   Serial.begin(57600);
   Serial.print("CrazyFlie Arduino Controller ver ");
   Serial.println(VERSION);
-  printf_begin();
+  //printf_begin();
 
 #ifdef LCD
   lcd.begin(57600);
