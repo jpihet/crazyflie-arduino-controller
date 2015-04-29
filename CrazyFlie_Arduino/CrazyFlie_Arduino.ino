@@ -23,6 +23,8 @@
 #include "printf.h"
 #include <SoftwareSerial.h>
 
+// Uncomment this for serial LCD support
+//#define LCD
 
 // my defines
 #define ulong uint32_t
@@ -43,8 +45,10 @@ const boolean DEBUG = 0;
 #define JS2_H   A4    // Yaw
 #define JS2_S   A5    // TBD
 
+#ifdef LCD
 #define LCD_RX  2    // Rx
 #define LCD_TX  3    // not connected
+#endif
 
 #define RF24_MOSI  11
 #define RF24_MISO  12
@@ -98,9 +102,10 @@ float smoothedThrust = 0.0;
 // Init RF24 lib. Pass CE and CSN pins
 RF24 radio(RF24_CE, RF24_CSN);
 
+#ifdef LCD
 // init LCD Serial port. Pass Rx and Tx pins
 SoftwareSerial lcd(2, 3);
-
+#endif
 
 // define the packet we want to send
 typedef struct
@@ -161,12 +166,14 @@ void setup(void)
   Serial.println(VERSION);
   printf_begin();
 
+#ifdef LCD
   lcd.begin(57600);
   initSerialLCD();
   setLCDColor(0xFF, 0xFF, 0xFF);  // white
   lcd.print("CrazyFlie v");
   lcd.print(VERSION);
-  
+#endif
+
   // Init nRRF24L01
   radio.begin();
 
@@ -214,8 +221,10 @@ void setup(void)
   radio.startListening();
 
   Serial.println("setup done");
+#ifdef LCD
   setLCDCursor(1, 2);
   lcd.print("Ready");
+#endif
 }
 
 
@@ -249,8 +258,10 @@ void loop(void)
     // check various stuff
     checkStatus();
 
+#ifdef LCD
     // show current status and info on LCD
     updateLCD();
+#endif
   }
 }
 
@@ -337,12 +348,13 @@ void doCalibrate()
 {
   float sum =0.0;
   float js1_v, js1_h, js2_v, js2_h;
-  
+
+#ifdef LCD
   // update LCD
   setLCDCursor(1, 2);
   lcd.print("Calibrating...");
-  
-  
+#endif
+
   for(int i = 0; i < 10; i++)
     sum += analogRead(JS1_V);    
   js1_v = sum/10.0;
@@ -377,8 +389,7 @@ void doCalibrate()
   // store in EEPROM
 }
 
-
-
+#ifdef LCD
 void updateLCD()
 {
   setLCDCursor(1, 2);
@@ -391,12 +402,8 @@ void updateLCD()
   lcd.print(" R:");
   lcd.print(cntr.roll);
   lcd.print(" ");
-
 }
-
-
-
-
+#endif
 
 void sendData(void)
 {
@@ -496,15 +503,19 @@ void checkPowerStatus()
     { 
       if (mode == PWR_ON_MODE)
       {
+#ifdef LCD
         // power down
         setLCDDisplayOn(0);
+#endif
         mode = SLEEP_MODE;
         // TODO: Put nRF24L01 & arduino to low power mode
       }
       else
       {
         // power up
+#ifdef LCD
         setLCDDisplayOn(1);
+#endif
         mode = PWR_ON_MODE;
       }
     }
@@ -512,6 +523,8 @@ void checkPowerStatus()
 }
 
 
+
+#ifdef LCD
 
 // LCD Routines - TODO: convert this to a lib ----------
 
@@ -628,4 +641,4 @@ void setLCDColor(byte r, byte g, byte b)
   delay(1);
 }
 
-
+#endif
