@@ -39,11 +39,11 @@ const boolean DEBUG = 0;
 // connections
 #define JS1_V   A0    // Thrust
 #define JS1_H   A1    // Yaw
-#define JS1_S   A2    // TBD
+#define JS1_S   A2    // Joystick 1 button
 
 #define JS2_V   A3    // Pitch
-#define JS2_H   A4    // Yaw
-#define JS2_S   A5    // TBD
+#define JS2_H   A4    // Roll
+#define JS2_S   A5    // Joystick 2 button
 
 #ifdef LCD
 #define LCD_RX  2    // Rx
@@ -64,7 +64,7 @@ const boolean DEBUG = 0;
 
 #define LED  8
 
-// from crazyflie firmware commander.c 
+// from crazyflie firmware commander.c
 #define MIN_THRUST  10000
 #define MAX_THRUST  50000
 #define MIN_PITCH -30.0
@@ -141,12 +141,13 @@ controls cntr;
 typedef struct
 {
   byte version;
-  int js1_v;
-  int js1_h;
-  int js2_v;
-  int js2_h;
+  unsigned int js1_v;
+  unsigned int js1_h;
+  unsigned int js2_v;
+  unsigned int js2_h;
 } eepromValues;
 
+eepromValues cal;
 
 // program vars
 ulong lastLoopTime = 0;
@@ -188,12 +189,12 @@ void setup(void)
 
   // TODO: read control offsets if JS button is pushed
   // and store in EEPROM
-  readControls();
-  if (!cntr.sw2)
-    doCalibrate();
+  //readControls();
+  //if (!cntr.sw2)
+  //  doCalibrate();
 
-
-
+  // Calibrate at every startup
+  doCalibrate();
 
   // define initial values for packet
   crtp.addr   = 0x30;
@@ -201,8 +202,6 @@ void setup(void)
   crtp.pitch  = 0.0;
   crtp.yaw    = 0.0;
   crtp.thrust = 0;
-
-
 
   // enable dynamic payloads, ch 10, data rate 250K
   radio.enableDynamicPayloads();
@@ -241,7 +240,10 @@ void loop(void)
     readControls();
 
     // check if we should enter/exit low power mode
-    checkPowerStatus();
+    //checkPowerStatus();
+
+    // check if calibration is needed
+    checkCalibrationNeeded();
 
     // if low power mode, just exit
     if (mode == SLEEP_MODE) return;
@@ -266,9 +268,6 @@ void loop(void)
 }
 
 
-
-
-
 void readControls()
 {
   // read pitch and roll on joystick 1
@@ -289,16 +288,16 @@ void processControls()
 {
   // thrust is 10000 to 50000
   // pitch is -30.00 to +30.00
-  // roll is -3000 to +30.00
+  // roll is -30.00 to +30.00
   // yaw is -199.99 to +199.99
 
   float alpha;
 
-  // first subtract offsets from joystick
-  cntr.thrust -= JS1_V_OFFSET;
-  cntr.yaw -= JS1_H_OFFSET;
-  cntr.pitch -= JS2_V_OFFSET;
-  cntr.roll -= JS2_H_OFFSET;
+  // first subtract offsets from joystick calibration
+  cntr.thrust -= cal.js1_v;     //JS1_V_OFFSET;
+  cntr.yaw    -= cal.js1_h;     //JS1_H_OFFSET;
+  cntr.pitch  -= cal.js2_v;     //JS2_V_OFFSET;
+  cntr.roll   -= cal.js2_h;     //JS2_H_OFFSET;
 
   // scale to crazyflie values
   float thrust = ((float)cntr.thrust - 10.0) * MAX_THRUST/512.0;
@@ -346,47 +345,55 @@ void checkStatus(void)
 
 void doCalibrate()
 {
-  float sum =0.0;
-  float js1_v, js1_h, js2_v, js2_h;
+#define AVG_LEN     250
 
+  ulong sum1_v = 0, sum1_h = 0, sum2_v = 0, sum2_h = 0;
+
+  Serial.println("Calibrating ...");
 #ifdef LCD
   // update LCD
   setLCDCursor(1, 2);
   lcd.print("Calibrating...");
 #endif
 
-  for(int i = 0; i < 10; i++)
-    sum += analogRead(JS1_V);    
-  js1_v = sum/10.0;
+  // Let some time to release the josyticks
+  digitalWrite(LED, HIGH);
+  delay(500);
+  digitalWrite(LED, LOW);
+  delay(500);
+  digitalWrite(LED, HIGH);
+  delay(500);
+  digitalWrite(LED, LOW);
+  delay(500);
+  digitalWrite(LED, HIGH);
 
-  sum = 0.0;
-  for(int i = 0; i < 10; i++)
-    sum += analogRead(JS1_H);
-  js1_h = sum/10.0;
+  for(int i = 0; i < AVG_LEN; i++) {
+    sum1_v += analogRead(JS1_V);
+    sum1_h += analogRead(JS1_H);
+    sum2_v += analogRead(JS2_V);
+    sum2_h += analogRead(JS2_H);
+  }
 
-  sum = 0.0;
-  for(int i = 0; i < 10; i++)
-    sum += analogRead(JS2_V);    
-  js2_v = sum/10.0;
-
-  sum = 0.0;
-  for(int i = 0; i < 10; i++)
-    sum += analogRead(JS2_H);
-  js2_h = sum/10.0;
+  cal.js1_v = sum1_v / AVG_LEN;
+  cal.js1_h = sum1_h / AVG_LEN;
+  cal.js2_v = sum2_v / AVG_LEN;
+  cal.js2_h = sum2_h / AVG_LEN;
 
   //if (DEBUG)
   {
     Serial.print("JS1_V Offset = ");
-    Serial.println(js1_v);
+    Serial.println(cal.js1_v);
     Serial.print("JS1_H Offset = ");
-    Serial.println(js1_h);    
+    Serial.println(cal.js1_h);
     Serial.print("JSs_V Offset = ");
-    Serial.println(js2_v);
+    Serial.println(cal.js2_v);
     Serial.print("JS2_H Offset = ");
-    Serial.println(js2_h);
+    Serial.println(cal.js2_h);
   }
 
   // store in EEPROM
+
+  digitalWrite(LED, LOW);
 }
 
 #ifdef LCD
@@ -488,6 +495,25 @@ void printCRTPValues()
   Serial.println(crtp.thrust);
 }
 
+void checkCalibrationNeeded(void)
+{ byte i;
+
+  // check if both joystick switches are on
+  if (cntr.sw1 && cntr.sw2) {
+    // Keep checking for 2 seconds
+    for (i = 0; i < 20; i++) {
+        delay(100);
+        readControls();
+        // If button released, exit
+        if (!cntr.sw1 || !cntr.sw2)
+            return;
+    }
+
+    // if the buttons are still down, calibrate
+    if (cntr.sw1 && cntr.sw2)
+        doCalibrate();
+  }
+}
 
 void checkPowerStatus()
 {
