@@ -85,8 +85,14 @@ const int JS2_H_OFFSET = 514;    // roll
 #define SLEEP_MODE   0
 #define PWR_ON_MODE  1
 
+#define ADC_RANGE    1024
 // joystick full scale value. Range 0 +/- 512 counts
 const float JS_RANGE = 512.0;
+// HW dependent joysticks range
+const float JS1V_RANGE = 512.0;    // Thrust
+const float JS1H_RANGE = 512.0;    // Yaw
+const float JS2V_RANGE = 512.0;    // Roll
+const float JS2H_RANGE = 512.0;    // Pitch
 
 // user set trim values TODO: store in EEPROM
 int pitchOffset = 0;
@@ -300,10 +306,10 @@ void processControls()
   cntr.roll   -= cal.js2_h;     //JS2_H_OFFSET;
 
   // scale to crazyflie values
-  float thrust = ((float)cntr.thrust - 10.0) * MAX_THRUST/512.0;
-  crtp.pitch = (float)cntr.pitch * MAX_PITCH/512.0 * -1.0;
-  crtp.roll =  (float)cntr.roll * MAX_ROLL/512.0 * -1.0;
-  crtp.yaw =   (float)cntr.yaw * MAX_YAW/512.0;
+  float thrust = ((float)cntr.thrust - 10.0) * MAX_THRUST / JS1V_RANGE;
+  crtp.yaw     = (float)cntr.yaw * MAX_YAW / JS1H_RANGE;
+  crtp.pitch   = (float)cntr.pitch * MAX_PITCH / JS2V_RANGE * -1.0;
+  crtp.roll    = (float)cntr.roll * MAX_ROLL / JS2H_RANGE * -1.0;
 
   // experimental filter to smooth thrust power
   if (thrust < 0) thrust = 0;
