@@ -224,7 +224,8 @@ void setup(void)
   delay(100);
 
   // Dump the configuration of the rf unit for debugging
-  if (DEBUG) radio.printDetails();
+  if (DEBUG)
+    radio.printDetails();
 
   // Start listening
   radio.startListening();
@@ -261,8 +262,10 @@ void loop(void)
     // scale controls to expected CF values
     processControls();
 
-    if (DEBUG) printCntrValues();
-    if (DEBUG) printCRTPValues();
+    if (DEBUG)
+      printCntrValues();
+    if (DEBUG)
+      printCRTPValues();
 
     // send data to Cazyflie
     sendData();
@@ -493,16 +496,24 @@ void printCntrValues()
 
 void printCRTPValues()
 {
-  Serial.print("ADDR = ");
+  uint8_t i;
+  char *ptr = (char *) &crtp;
+
+  Serial.print("HDR = ");
   Serial.print(crtp.header, HEX);
-  Serial.print("  Roll = ");
+  Serial.print(" Roll = ");
   Serial.print(crtp.roll);
-  Serial.print("  Pitch = ");
+  Serial.print(" Pitch = ");
   Serial.print(crtp.pitch);
-  Serial.print("  Yaw = ");
+  Serial.print(" Yaw = ");
   Serial.print(crtp.yaw);
-  Serial.print("  Thrust = ");
-  Serial.println(crtp.thrust);
+  Serial.print(" Thrust = ");
+  Serial.print(crtp.thrust);
+
+  Serial.print(" - ");
+  for (i = 0; i < sizeof(crtp); i++)
+    Serial.print(ptr[i] & 0xFF, HEX);
+  Serial.println("");
 }
 
 void checkCalibrationNeeded(void)
