@@ -81,14 +81,14 @@ const boolean DEBUG = 0;
 
 #define ADC_RANGE    1024
 // HW dependent joysticks range
-const float JS1V_RANGE = 512.0;    // Thrust
-const float JS1H_RANGE = 512.0;    // Yaw
-const float JS2V_RANGE = 512.0;    // Roll
-const float JS2H_RANGE = 512.0;    // Pitch
+const float JS1V_RANGE = 365.0;    // Thrust
+const float JS1H_RANGE = 360.0;    // Yaw
+const float JS2V_RANGE = 290.0;    // Roll
+const float JS2H_RANGE = 275.0;    // Pitch
 
 // experimental thrust smoothing levels
 const float ALPHA_UP = .50;
-const float ALPHA_DOWN = .90;
+const float ALPHA_DOWN = .40;
 float smoothedThrust = 0.0;
 
 // Radio channel etc.
@@ -271,7 +271,7 @@ void loop(void)
 void readControls()
 {
   // read pitch and roll on joystick 1
-  cntr.thrust = analogRead(JS1_V);
+  cntr.thrust = ADC_RANGE - analogRead(JS1_V);
   cntr.yaw    = analogRead(JS1_H);
   cntr.sw1    = !digitalRead(JS1_S);
 
@@ -300,10 +300,10 @@ void processControls()
   cntr.roll   -= cal.js2_h;     //JS2_H_OFFSET;
 
   // scale to crazyflie values
-  float thrust = ((float)cntr.thrust - 10.0) * MAX_THRUST / JS1V_RANGE;
+  float thrust = (float)cntr.thrust * MAX_THRUST / JS1V_RANGE;
   crtp.yaw     = (float)cntr.yaw * MAX_YAW / JS1H_RANGE;
-  crtp.pitch   = (float)cntr.pitch * MAX_PITCH / JS2V_RANGE * -1.0;
-  crtp.roll    = (float)cntr.roll * MAX_ROLL / JS2H_RANGE * -1.0;
+  crtp.pitch   = (float)cntr.pitch * MAX_PITCH / JS2V_RANGE;
+  crtp.roll    = (float)cntr.roll * MAX_ROLL / JS2H_RANGE;
 
   // experimental filter to smooth thrust power
   if (thrust < 0) thrust = 0;
