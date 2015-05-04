@@ -74,30 +74,17 @@ const boolean DEBUG = 0;
 #define MIN_YAW   -200.0
 #define MAX_YAW    200.0
 
-// hard coded offset values TODO: use switches to adjust
-const int JS1_V_OFFSET = 497;    // thrust
-const int JS1_H_OFFSET = 508;    // yaw
-const int JS2_V_OFFSET = 510;    // pitch
-const int JS2_H_OFFSET = 514;    // roll
-
 // program defines
 #define LOOP_TIME    100  // 100ms = 10 updates per second
 #define SLEEP_MODE   0
 #define PWR_ON_MODE  1
 
 #define ADC_RANGE    1024
-// joystick full scale value. Range 0 +/- 512 counts
-const float JS_RANGE = 512.0;
 // HW dependent joysticks range
 const float JS1V_RANGE = 512.0;    // Thrust
 const float JS1H_RANGE = 512.0;    // Yaw
 const float JS2V_RANGE = 512.0;    // Roll
 const float JS2H_RANGE = 512.0;    // Pitch
-
-// user set trim values TODO: store in EEPROM
-int pitchOffset = 0;
-int rollOffset = 0;
-int yawOffset = 0;
 
 // experimental thrust smoothing levels
 const float ALPHA_UP = .50;
