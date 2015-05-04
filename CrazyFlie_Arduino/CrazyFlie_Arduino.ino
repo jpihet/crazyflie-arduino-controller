@@ -104,6 +104,10 @@ const float ALPHA_UP = .50;
 const float ALPHA_DOWN = .90;
 float smoothedThrust = 0.0;
 
+// Radio channel etc.
+#define RADIO_ADDR     0x00
+#define RADIO_CHANNEL  80
+#define PORT_COMMANDER 3    // Port to send control commands
 
 // Init RF24 lib. Pass CE and CSN pins
 RF24 radio(RF24_CE, RF24_CSN);
@@ -116,7 +120,7 @@ SoftwareSerial lcd(2, 3);
 // define the packet we want to send
 typedef struct
 {
-  byte addr;
+  byte header;
   float roll;
   float pitch;
   float yaw;
@@ -124,9 +128,9 @@ typedef struct
 } cmdPacket;
 
 // create an instance of the packet
-cmdPacket crtp; 
+cmdPacket crtp;
 
-// TODO: create a union with cmpPacket and byte array 
+// TODO: create a union with cmpPacket and byte array
 // send & receive array. Lame way to send struct
 char payload[15];
 
@@ -203,15 +207,15 @@ void setup(void)
   doCalibrate();
 
   // define initial values for packet
-  crtp.addr   = 0x30;
+  crtp.header = (PORT_COMMANDER & 0xF) << 4 | 3 << 2 | (RADIO_CHANNEL & 0x03);
   crtp.roll   = 0.0;
   crtp.pitch  = 0.0;
   crtp.yaw    = 0.0;
   crtp.thrust = 0;
 
-  // enable dynamic payloads, ch 10, data rate 250K
+  // enable dynamic payloads, channel, data rate 250K
   radio.enableDynamicPayloads();
-  radio.setChannel(10);
+  radio.setChannel(RADIO_CHANNEL);
   radio.setDataRate(RF24_250KBPS);
   radio.setRetries(5,3);
   radio.setCRCLength(RF24_CRC_16);
@@ -490,7 +494,7 @@ void printCntrValues()
 void printCRTPValues()
 {
   Serial.print("ADDR = ");
-  Serial.print(crtp.addr, HEX);
+  Serial.print(crtp.header, HEX);
   Serial.print("  Roll = ");
   Serial.print(crtp.roll);
   Serial.print("  Pitch = ");
