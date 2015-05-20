@@ -65,6 +65,10 @@ const boolean DEBUG = 0;
 #define LED  8
 
 // from crazyflie firmware commander.c
+// thrust is 10000 to 50000
+// pitch is -30.00 to +30.00
+// roll is -30.00 to +30.00
+// yaw is -199.99 to +199.99
 #define MIN_THRUST  10000
 #define MAX_THRUST  50000
 #define MIN_PITCH -30.0
@@ -85,10 +89,12 @@ const float JS1V_RANGE = 365.0;    // Thrust
 const float JS1H_RANGE = 360.0;    // Yaw
 const float JS2V_RANGE = 290.0;    // Roll
 const float JS2H_RANGE = 275.0;    // Pitch
+// Thurst boost: get more thrust responsiveness
+const float THRUST_BOOST = 1.8;
 
 // experimental thrust smoothing levels
-const float ALPHA_UP = .50;
-const float ALPHA_DOWN = .40;
+const float ALPHA_UP = .15;
+const float ALPHA_DOWN = .10;
 float smoothedThrust = 0.0;
 
 // Radio channel etc.
@@ -267,15 +273,19 @@ void loop(void)
   }
 }
 
-
 void readControls()
 {
-  // read pitch and roll on joystick 1
+  // read thrust & yaw on joystick 1 (right)
+  //  Invert thrust channel
   cntr.thrust = ADC_RANGE - analogRead(JS1_V);
+  if (cntr.thrust < 0)
+    cntr.thrust = 0;
+  if (cntr.thrust > ADC_RANGE)
+    cntr.thrust = ADC_RANGE;
   cntr.yaw    = analogRead(JS1_H);
   cntr.sw1    = !digitalRead(JS1_S);
 
-  // read throttle & yaw on joystick 2
+  // read pitch and roll on joystick 2 (left)
   cntr.pitch = analogRead(JS2_V);
   cntr.roll  = analogRead(JS2_H);
   cntr.sw2   = !digitalRead(JS2_S);
@@ -286,11 +296,6 @@ void readControls()
 
 void processControls()
 {
-  // thrust is 10000 to 50000
-  // pitch is -30.00 to +30.00
-  // roll is -30.00 to +30.00
-  // yaw is -199.99 to +199.99
-
   float alpha;
 
   // first subtract offsets from joystick calibration
@@ -299,14 +304,24 @@ void processControls()
   cntr.pitch  -= cal.js2_v;     //JS2_V_OFFSET;
   cntr.roll   -= cal.js2_h;     //JS2_H_OFFSET;
 
+  if (DEBUG) {
+    Serial.print("; thrust = ");
+    Serial.println(cntr.thrust);
+  }
+
   // scale to crazyflie values
   float thrust = (float)cntr.thrust * MAX_THRUST / JS1V_RANGE;
+  thrust *= THRUST_BOOST;
   crtp.yaw     = (float)cntr.yaw * MAX_YAW / JS1H_RANGE;
   crtp.pitch   = (float)cntr.pitch * MAX_PITCH / JS2V_RANGE;
   crtp.roll    = (float)cntr.roll * MAX_ROLL / JS2H_RANGE;
 
+  if (thrust < 0)
+    thrust = 0;
+  if (thrust > MAX_THRUST)
+    thrust = MAX_THRUST;
+
   // experimental filter to smooth thrust power
-  if (thrust < 0) thrust = 0;
   if (thrust < smoothedThrust)
     alpha = ALPHA_DOWN;
   else
